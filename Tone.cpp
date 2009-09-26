@@ -39,7 +39,6 @@ Version Modified By Date     Comments
 #define TIMSK2 TIMSK
 #define OCIE2A OCIE2
 #define TIMER2_COMPA_vect TIMER2_COMP_vect
-#define TIMSK1 TIMSK
 #endif
 
 // timerx_toggle_count:
@@ -323,15 +322,6 @@ void Tone::stop()
 {
   switch(_timer)
   {
-#if defined(__AVR_ATmega8__)
-    case 1:
-      bitWrite(TIMSK1, OCIE1A, 0);
-      break;
-    case 2:
-      bitWrite(TIMSK2, OCIE2A, 0);
-      break;
-
-#else
     case 0:
       TIMSK0 = 0;
       break;
@@ -341,7 +331,6 @@ void Tone::stop()
     case 2:
       TIMSK2 = 0;
       break;
-#endif
 
 #if defined(__AVR_ATmega1280__)
     case 3:
@@ -366,12 +355,9 @@ bool Tone::isPlaying(void)
   
   switch(_timer)
   {
-#if !defined(__AVR_ATmega8__)
     case 0:
       returnvalue = (timer0_toggle_count > 0) || (TIMSK0 & (1 << OCIE0A));
       break;
-#endif
-
     case 1:
       returnvalue = (timer1_toggle_count > 0) || (TIMSK1 & (1 << OCIE1A));
       break;
