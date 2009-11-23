@@ -114,8 +114,7 @@ void Tone::begin(uint8_t tonePin)
     // Set timer specific stuff
     // All timers in CTC mode
     // 8 bit timers will require changing prescalar values,
-    // whereas 16 bit timers are set to ck/1 (no prescalar)
-    // (minimum frequency is 123Hz @ 16MHz, 62Hz @ 8MHz)
+    // whereas 16 bit timers are set to either ck/1 or ck/64 prescalar
     switch (_timer)
     {
 #if !defined(__AVR_ATmega8__)
@@ -193,9 +192,9 @@ void Tone::begin(uint8_t tonePin)
 
 void Tone::play(int frequency, unsigned long duration)
 {
-  uint8_t prescalarbits = 0;
+  uint8_t prescalarbits = 0b001;
   long toggle_count = 0;
-  uint16_t ocr = 0;
+  uint32_t ocr = 0;
 
   if (_timer > 0)
   {
@@ -242,7 +241,7 @@ void Tone::play(int frequency, unsigned long duration)
           }
         }
       }
-      
+
 #if !defined(__AVR_ATmega8__)
       if (_timer == 0)
         TCCR0B = prescalarbits;
@@ -252,8 +251,27 @@ void Tone::play(int frequency, unsigned long duration)
     }
     else
     {
-      // all 16 bit timers won't use prescalars
+      // two choices for the 16 bit timers: ck/1 or ck/64
       ocr = F_CPU / frequency / 2 - 1;
+
+      prescalarbits = 0b001;
+      if (ocr > 0xffff)
+      {
+        ocr = F_CPU / frequency / 2 / 64 - 1;
+        prescalarbits = 0b011;
+      }
+
+      if (_timer == 1)
+        TCCR1B = (TCCR1B & 0b11111000) | prescalarbits;
+#if defined(__AVR_ATmega1280__)
+      else if (_timer == 3)
+        TCCR3B = (TCCR3B & 0b11111000) | prescalarbits;
+      else if (_timer == 4)
+        TCCR4B = (TCCR4B & 0b11111000) | prescalarbits;
+      else if (_timer == 5)
+        TCCR5B = (TCCR5B & 0b11111000) | prescalarbits;
+#endif
+
     }
     
 
