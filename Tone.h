@@ -23,6 +23,10 @@
 Version Modified By Date     Comments
 ------- ----------- -------- --------
 0001    B Hagman    09/08/02 Initial coding
+0002    B Hagman    09/08/18 Multiple pins
+0003    B Hagman    09/08/18 Moved initialization from constructor to begin()
+0004    B Hagman    09/09/26 Fixed problems with ATmega8
+0005    B Hagman    09/11/23 Scanned prescalars for best fit on 8 bit timers
 
 *************************************************/
 
