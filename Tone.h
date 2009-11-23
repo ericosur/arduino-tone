@@ -35,7 +35,6 @@ Version Modified By Date     Comments
 * Public Constants
 *************************************************/
 
-// Lowest for ck/1024
 #define NOTE_B0  31
 #define NOTE_C1  33
 #define NOTE_CS1 35
@@ -60,7 +59,6 @@ Version Modified By Date     Comments
 #define NOTE_GS2 104
 #define NOTE_A2  110
 #define NOTE_AS2 117
-// Lowest for ck/256
 #define NOTE_B2  123
 #define NOTE_C3  131
 #define NOTE_CS3 139
@@ -73,7 +71,6 @@ Version Modified By Date     Comments
 #define NOTE_GS3 208
 #define NOTE_A3  220
 #define NOTE_AS3 233
-// Lowest for ck/128
 #define NOTE_B3  247
 #define NOTE_C4  262
 #define NOTE_CS4 277
@@ -138,7 +135,7 @@ class Tone
   public:
     void begin(uint8_t tonePin);
     bool isPlaying();
-    void play(int frequency, unsigned long duration = 0);
+    void play(unsigned int frequency, unsigned long duration = 0);
     void stop();
 
   private:

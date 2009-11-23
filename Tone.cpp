@@ -190,7 +190,7 @@ void Tone::begin(uint8_t tonePin)
 
 // frequency (in hertz) and duration (in milliseconds).
 
-void Tone::play(int frequency, unsigned long duration)
+void Tone::play(unsigned int frequency, unsigned long duration)
 {
   uint8_t prescalarbits = 0b001;
   long toggle_count = 0;
