@@ -21,6 +21,7 @@
 Version Modified By Date     Comments
 ------- ----------- -------- --------
 0001    B Hagman    09/08/02 Initial coding
+0002    B Hagman    09/11/23 Scanned prescalars for best fit on 8 bit timers
 
 *************************************************/
 
@@ -104,7 +105,7 @@ uint8_t Tone::_tone_pin_count = 0;
 
 void Tone::begin(uint8_t tonePin)
 {
-  if(_tone_pin_count < AVAILABLE_TONE_PINS)
+  if (_tone_pin_count < AVAILABLE_TONE_PINS)
   {
     _pin = tonePin;
     _timer = pgm_read_byte(tone_pin_to_timer_PGM + _tone_pin_count);
@@ -112,10 +113,10 @@ void Tone::begin(uint8_t tonePin)
 
     // Set timer specific stuff
     // All timers in CTC mode
-    // 8 bit timers will require changing presaclar values,
+    // 8 bit timers will require changing prescalar values,
     // whereas 16 bit timers are set to ck/1 (no prescalar)
     // (minimum frequency is 123Hz @ 16MHz, 62Hz @ 8MHz)
-    switch(_timer)
+    switch (_timer)
     {
 #if !defined(__AVR_ATmega8__)
       case 0:
@@ -192,77 +193,72 @@ void Tone::begin(uint8_t tonePin)
 
 void Tone::play(int frequency, unsigned long duration)
 {
-  int prescalar = 1;
+  uint8_t prescalarbits = 0;
   long toggle_count = 0;
+  uint16_t ocr = 0;
 
-  if(_timer > 0)
+  if (_timer > 0)
   {
     // Set the pinMode as OUTPUT
     pinMode(_pin, OUTPUT);
     
-    // Set the prescalar for 8 bit timers
-    if(_timer == 2)
+    // if we are using an 8 bit timer, scan through prescalars to find the best fit
+    if (_timer == 0 || _timer == 2)
     {
-      if(frequency < 123)
+      ocr = F_CPU / frequency / 2 - 1;
+      prescalarbits = 0b001;  // ck/1: same for both timers
+      if (ocr > 255)
       {
-        prescalar = 1024;
-        TCCR2B = 0b111;     // CSx2, CSx1, CSx0
-      }
-      else if(frequency < 245)
-      {
-        prescalar = 256;
-        TCCR2B = 0b110;     // CSx2, CSx1
-      }
-      else if(frequency < 490)
-      {
-        prescalar = 128;
-        TCCR2B = 0b101;     // CSx2, CSx0
-      }
-      else if(frequency < 980)
-      {
-        prescalar = 64;
-        TCCR2B = 0b100;     // CSx2
-      }
-      else if(frequency < 3920)
-      {
-        prescalar = 32;
-        TCCR2B = 0b011;     // CSx1, CSx0
-      }
-      else
-      {
-        prescalar = 8;
-        TCCR2B = 0b010;     // CSx1
-      }
-    }
+        ocr = F_CPU / frequency / 2 / 8 - 1;
+        prescalarbits = 0b010;  // ck/8: same for both timers
 
+        if (_timer == 2 && ocr > 255)
+        {
+          ocr = F_CPU / frequency / 2 / 32 - 1;
+          prescalarbits = 0b011;
+        }
+
+        if (ocr > 255)
+        {
+          ocr = F_CPU / frequency / 2 / 64 - 1;
+          prescalarbits = _timer == 0 ? 0b011 : 0b100;
+
+          if (_timer == 2 && ocr > 255)
+          {
+            ocr = F_CPU / frequency / 2 / 128 - 1;
+            prescalarbits = 0b101;
+          }
+
+          if (ocr > 255)
+          {
+            ocr = F_CPU / frequency / 2 / 256 - 1;
+            prescalarbits = _timer == 0 ? 0b100 : 0b110;
+            if (ocr > 255)
+            {
+              // can't do any better than /1024
+              ocr = F_CPU / frequency / 2 / 1024 - 1;
+              prescalarbits = _timer == 0 ? 0b101 : 0b111;
+            }
+          }
+        }
+      }
+      
 #if !defined(__AVR_ATmega8__)
-    else if(_timer == 0)
-    {
-      if(frequency < 123)
-      {
-        prescalar = 1024;
-        TCCR0B = 0b101;     // CSx2, CSx0
-      }
-      else if(frequency < 490)
-      {
-        prescalar = 256;
-        TCCR0B = 0b100;     // CSx2
-      }
-      else if(frequency < 3920)
-      {
-        prescalar = 64;
-        TCCR0B = 0b011;     // CSx1, CSx0
-      }
+      if (_timer == 0)
+        TCCR0B = prescalarbits;
       else
-      {
-        prescalar = 8;
-        TCCR0B = 0b010;     // CSx1
-      }
-    }
 #endif
+        TCCR2B = prescalarbits;
+    }
+    else
+    {
+      // all 16 bit timers won't use prescalars
+      ocr = F_CPU / frequency / 2 - 1;
+    }
+    
 
     // Calculate the toggle count
-    if(duration > 0)
+    if (duration > 0)
     {
       toggle_count = 2 * frequency * duration / 1000;
     }
@@ -274,41 +270,41 @@ void Tone::play(int frequency, unsigned long duration)
     // Set the OCR for the given timer,
     // set the toggle count,
     // then turn on the interrupts
-    switch(_timer)
+    switch (_timer)
     {
 
 #if !defined(__AVR_ATmega8__)
       case 0:
-        OCR0A = (F_CPU / frequency) / 2 / prescalar - 1;
+        OCR0A = ocr;
         timer0_toggle_count = toggle_count;
         bitWrite(TIMSK0, OCIE0A, 1);
         break;
 #endif
 
       case 1:
-        OCR1A = (F_CPU / frequency) / 2 - 1;
+        OCR1A = ocr;
         timer1_toggle_count = toggle_count;
         bitWrite(TIMSK1, OCIE1A, 1);
         break;
       case 2:
-        OCR2A = (F_CPU / frequency) / 2 / prescalar - 1;
+        OCR2A = ocr;
         timer2_toggle_count = toggle_count;
         bitWrite(TIMSK2, OCIE2A, 1);
         break;
 
 #if defined(__AVR_ATmega1280__)
       case 3:
-        OCR3A = (F_CPU / frequency) / 2 - 1;
+        OCR3A = ocr;
         timer3_toggle_count = toggle_count;
         bitWrite(TIMSK3, OCIE3A, 1);
         break;
       case 4:
-        OCR4A = (F_CPU / frequency) / 2 - 1;
+        OCR4A = ocr;
         timer4_toggle_count = toggle_count;
         bitWrite(TIMSK4, OCIE4A, 1);
         break;
       case 5:
-        OCR5A = (F_CPU / frequency) / 2 - 1;
+        OCR5A = ocr;
         timer5_toggle_count = toggle_count;
         bitWrite(TIMSK5, OCIE5A, 1);
         break;
@@ -321,7 +317,7 @@ void Tone::play(int frequency, unsigned long duration)
 
 void Tone::stop()
 {
-  switch(_timer)
+  switch (_timer)
   {
 #if defined(__AVR_ATmega8__)
     case 1:
@@ -364,7 +360,7 @@ bool Tone::isPlaying(void)
 {
   bool returnvalue = false;
   
-  switch(_timer)
+  switch (_timer)
   {
 #if !defined(__AVR_ATmega8__)
     case 0:
@@ -399,10 +395,10 @@ bool Tone::isPlaying(void)
 #if !defined(__AVR_ATmega8__)
 ISR(TIMER0_COMPA_vect)
 {
-  if(timer0_toggle_count != 0)
+  if (timer0_toggle_count != 0)
   {
     // toggle the pin
-    if(*timer0_pin_port & timer0_pin_mask) // pin is already high
+    if (*timer0_pin_port & timer0_pin_mask) // pin is already high
     {
       *timer0_pin_port &= ~(timer0_pin_mask);
     }
@@ -411,7 +407,7 @@ ISR(TIMER0_COMPA_vect)
       *timer0_pin_port |= timer0_pin_mask;
     }
 
-    if(timer0_toggle_count > 0)
+    if (timer0_toggle_count > 0)
       timer0_toggle_count--;
   }
   else
@@ -425,10 +421,10 @@ ISR(TIMER0_COMPA_vect)
 
 ISR(TIMER1_COMPA_vect)
 {
-  if(timer1_toggle_count != 0)
+  if (timer1_toggle_count != 0)
   {
     // toggle the pin
-    if(*timer1_pin_port & timer1_pin_mask) // pin is already high
+    if (*timer1_pin_port & timer1_pin_mask) // pin is already high
     {
       *timer1_pin_port &= ~(timer1_pin_mask);
     }
@@ -437,7 +433,7 @@ ISR(TIMER1_COMPA_vect)
       *timer1_pin_port |= timer1_pin_mask;
     }
 
-    if(timer1_toggle_count > 0)
+    if (timer1_toggle_count > 0)
       timer1_toggle_count--;
   }
   else
@@ -451,10 +447,10 @@ ISR(TIMER1_COMPA_vect)
 ISR(TIMER2_COMPA_vect)
 {
 
-  if(timer2_toggle_count != 0)
+  if (timer2_toggle_count != 0)
   {
     // toggle the pin
-    if(*timer2_pin_port & timer2_pin_mask) // pin is already high
+    if (*timer2_pin_port & timer2_pin_mask) // pin is already high
     {
       *timer2_pin_port &= ~(timer2_pin_mask);
     }
@@ -463,7 +459,7 @@ ISR(TIMER2_COMPA_vect)
       *timer2_pin_port |= timer2_pin_mask;
     }
 
-    if(timer2_toggle_count > 0)
+    if (timer2_toggle_count > 0)
       timer2_toggle_count--;
   }
   else
@@ -479,10 +475,10 @@ ISR(TIMER2_COMPA_vect)
 
 ISR(TIMER3_COMPA_vect)
 {
-  if(timer3_toggle_count != 0)
+  if (timer3_toggle_count != 0)
   {
     // toggle the pin
-    if(*timer3_pin_port & timer3_pin_mask) // pin is already high
+    if (*timer3_pin_port & timer3_pin_mask) // pin is already high
     {
       *timer3_pin_port &= ~(timer3_pin_mask);
     }
@@ -491,7 +487,7 @@ ISR(TIMER3_COMPA_vect)
       *timer3_pin_port |= timer3_pin_mask;
     }
 
-    if(timer3_toggle_count > 0)
+    if (timer3_toggle_count > 0)
       timer3_toggle_count--;
   }
   else
@@ -503,10 +499,10 @@ ISR(TIMER3_COMPA_vect)
 
 ISR(TIMER4_COMPA_vect)
 {
-  if(timer4_toggle_count != 0)
+  if (timer4_toggle_count != 0)
   {
     // toggle the pin
-    if(*timer4_pin_port & timer4_pin_mask) // pin is already high
+    if (*timer4_pin_port & timer4_pin_mask) // pin is already high
     {
       *timer4_pin_port &= ~(timer4_pin_mask);
     }
@@ -515,7 +511,7 @@ ISR(TIMER4_COMPA_vect)
       *timer4_pin_port |= timer4_pin_mask;
     }
 
-    if(timer4_toggle_count > 0)
+    if (timer4_toggle_count > 0)
       timer4_toggle_count--;
   }
   else
@@ -527,10 +523,10 @@ ISR(TIMER4_COMPA_vect)
 
 ISR(TIMER5_COMPA_vect)
 {
-  if(timer5_toggle_count != 0)
+  if (timer5_toggle_count != 0)
   {
     // toggle the pin
-    if(*timer5_pin_port & timer5_pin_mask) // pin is already high
+    if (*timer5_pin_port & timer5_pin_mask) // pin is already high
     {
       *timer5_pin_port &= ~(timer5_pin_mask);
     }
@@ -539,7 +535,7 @@ ISR(TIMER5_COMPA_vect)
       *timer5_pin_port |= timer5_pin_mask;
     }
 
-    if(timer5_toggle_count > 0)
+    if (timer5_toggle_count > 0)
       timer5_toggle_count--;
   }
   else
