@@ -25,6 +25,8 @@ Version Modified By Date     Comments
 0003    B Hagman    09/08/18 Moved initialization from constructor to begin()
 0004    B Hagman    09/09/26 Fixed problems with ATmega8
 0005    B Hagman    09/11/23 Scanned prescalars for best fit on 8 bit timers
+                    09/11/25 Changed pin toggle method to XOR
+                    09/11/25 Fixed timer0 from being excluded
 
 *************************************************/
 
@@ -199,7 +201,7 @@ void Tone::play(unsigned int frequency, unsigned long duration)
   long toggle_count = 0;
   uint32_t ocr = 0;
 
-  if (_timer > 0)
+  if (_timer >= 0)
   {
     // Set the pinMode as OUTPUT
     pinMode(_pin, OUTPUT);
@@ -419,14 +421,7 @@ ISR(TIMER0_COMPA_vect)
   if (timer0_toggle_count != 0)
   {
     // toggle the pin
-    if (*timer0_pin_port & timer0_pin_mask) // pin is already high
-    {
-      *timer0_pin_port &= ~(timer0_pin_mask);
-    }
-    else
-    {
-      *timer0_pin_port |= timer0_pin_mask;
-    }
+    *timer0_pin_port ^= timer0_pin_mask;
 
     if (timer0_toggle_count > 0)
       timer0_toggle_count--;
@@ -445,14 +440,7 @@ ISR(TIMER1_COMPA_vect)
   if (timer1_toggle_count != 0)
   {
     // toggle the pin
-    if (*timer1_pin_port & timer1_pin_mask) // pin is already high
-    {
-      *timer1_pin_port &= ~(timer1_pin_mask);
-    }
-    else
-    {
-      *timer1_pin_port |= timer1_pin_mask;
-    }
+    *timer1_pin_port ^= timer1_pin_mask;
 
     if (timer1_toggle_count > 0)
       timer1_toggle_count--;
@@ -471,6 +459,8 @@ ISR(TIMER2_COMPA_vect)
   if (timer2_toggle_count != 0)
   {
     // toggle the pin
+    *timer2_pin_port ^= timer2_pin_mask;
+/*
     if (*timer2_pin_port & timer2_pin_mask) // pin is already high
     {
       *timer2_pin_port &= ~(timer2_pin_mask);
@@ -479,6 +469,7 @@ ISR(TIMER2_COMPA_vect)
     {
       *timer2_pin_port |= timer2_pin_mask;
     }
+*/
 
     if (timer2_toggle_count > 0)
       timer2_toggle_count--;
@@ -499,14 +490,7 @@ ISR(TIMER3_COMPA_vect)
   if (timer3_toggle_count != 0)
   {
     // toggle the pin
-    if (*timer3_pin_port & timer3_pin_mask) // pin is already high
-    {
-      *timer3_pin_port &= ~(timer3_pin_mask);
-    }
-    else
-    {
-      *timer3_pin_port |= timer3_pin_mask;
-    }
+    *timer3_pin_port ^= timer3_pin_mask;
 
     if (timer3_toggle_count > 0)
       timer3_toggle_count--;
@@ -523,14 +507,7 @@ ISR(TIMER4_COMPA_vect)
   if (timer4_toggle_count != 0)
   {
     // toggle the pin
-    if (*timer4_pin_port & timer4_pin_mask) // pin is already high
-    {
-      *timer4_pin_port &= ~(timer4_pin_mask);
-    }
-    else
-    {
-      *timer4_pin_port |= timer4_pin_mask;
-    }
+    *timer4_pin_port ^= timer4_pin_mask;
 
     if (timer4_toggle_count > 0)
       timer4_toggle_count--;
@@ -547,14 +524,7 @@ ISR(TIMER5_COMPA_vect)
   if (timer5_toggle_count != 0)
   {
     // toggle the pin
-    if (*timer5_pin_port & timer5_pin_mask) // pin is already high
-    {
-      *timer5_pin_port &= ~(timer5_pin_mask);
-    }
-    else
-    {
-      *timer5_pin_port |= timer5_pin_mask;
-    }
+    *timer5_pin_port ^= timer5_pin_mask;
 
     if (timer5_toggle_count > 0)
       timer5_toggle_count--;

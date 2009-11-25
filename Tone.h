@@ -27,6 +27,8 @@ Version Modified By Date     Comments
 0003    B Hagman    09/08/18 Moved initialization from constructor to begin()
 0004    B Hagman    09/09/26 Fixed problems with ATmega8
 0005    B Hagman    09/11/23 Scanned prescalars for best fit on 8 bit timers
+                    09/11/25 Changed pin toggle method to XOR
+                    09/11/25 Fixed timer0 from being excluded
 
 *************************************************/
 
