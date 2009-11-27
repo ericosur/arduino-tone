@@ -460,16 +460,6 @@ ISR(TIMER2_COMPA_vect)
   {
     // toggle the pin
     *timer2_pin_port ^= timer2_pin_mask;
-/*
-    if (*timer2_pin_port & timer2_pin_mask) // pin is already high
-    {
-      *timer2_pin_port &= ~(timer2_pin_mask);
-    }
-    else
-    {
-      *timer2_pin_port |= timer2_pin_mask;
-    }
-*/
 
     if (timer2_toggle_count > 0)
       timer2_toggle_count--;
